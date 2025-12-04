@@ -1,270 +1,261 @@
 # Frontend Service
 
-The Frontend Service provides a web-based user interface for the Data Collector ADIA system. It allows users to create browser automation tasks, view task history, and monitor real-time task execution via WebSocket connections.
+The Frontend Service provides a Streamlit-based web interface for the Data Collector ADIA system. It allows users to create browser automation tasks, view task history, and monitor task execution via gRPC connections to the Backend and Database services.
 
 ## Overview
 
 This service provides:
 - Web-based UI for task management
-- Real-time task streaming via WebSocket
+- Real-time task status updates
 - Task history viewing
 - Task creation and monitoring
 
 ## Features
 
-- Modern, responsive UI design
-- Real-time task updates via WebSocket
+- Modern Streamlit UI
+- Real-time status updates via polling
 - Task history retrieval and display
 - Task status visualization
 - Step-by-step execution viewing
+- gRPC-based communication for better performance
 
 ## Installation
 
 ### Prerequisites
 
-- Python 3.11 or higher (optional - can serve via any web server)
-- Backend Service running (port 8000)
-- Database Service running (port 8002)
+- Python 3.11 or higher
+- Backend Service running (port 50050)
+- Database Service running (port 50052)
 
 ### Setup
 
-**Option 1: Python HTTP Server**
+1. Install Python dependencies:
 ```bash
-python server.py
+pip install -r requirements.txt
 ```
 
-**Option 2: Any Web Server**
+2. Generate protobuf files (first time only):
+```bash
+cd ../shared
+python generate_protos.py
+cd ../Front-end
+```
 
-You can serve the `index.html` file using any web server:
-- Nginx
-- Apache
-- Python's built-in HTTP server
-- Node.js http-server
-- Or open directly in browser (with CORS limitations)
+## Configuration
+
+### Environment Variables
+
+```bash
+BACKEND_SERVICE_HOST=localhost          # Backend Service host (default: localhost)
+BACKEND_SERVICE_PORT=50050              # Backend Service port (default: 50050)
+DATABASE_SERVICE_HOST=localhost         # Database Service host (default: localhost)
+DATABASE_SERVICE_PORT=50052             # Database Service port (default: 50052)
+```
+
+### Streamlit Configuration
+
+Create `.streamlit/config.toml` for custom settings:
+
+```toml
+[server]
+port = 8501
+address = "0.0.0.0"
+
+[browser]
+gatherUsageStats = false
+```
+
+### Default Ports
+
+- **Streamlit UI**: `8501`
+- **Backend Service**: `50050` (remote)
+- **Database Service**: `50052` (remote)
 
 ## Usage
 
 ### Start the Service
 
-Using Python server:
+**For Testing (Single Machine):**
 ```bash
-python server.py
+# Run in a screen session
+screen -S frontend-service
+streamlit run app.py
+# Press Ctrl+A then D to detach
 ```
 
-Or with custom port:
+**For Production (Separate Machine):**
 ```bash
-FRONTEND_SERVICE_PORT=8003 python server.py
+export BACKEND_SERVICE_HOST=backend-service-host
+export BACKEND_SERVICE_PORT=50050
+export DATABASE_SERVICE_HOST=database-service-host
+export DATABASE_SERVICE_PORT=50052
+streamlit run app.py --server.port=8501 --server.address=0.0.0.0
 ```
-
-The service will start on `http://localhost:8003` by default.
 
 ### Access the UI
 
 Open your browser and navigate to:
 ```
-http://localhost:8003
+http://localhost:8501
 ```
-
-## Configuration
-
-### Backend URL
-
-Update the `BACKEND_URL` in `index.html` if your services run on different ports:
-
-```javascript
-const BACKEND_URL = 'http://localhost:8000';  // Backend Service URL
-```
-
-The frontend automatically constructs Database Service URL from Backend URL (replacing port 8000 with 8002).
 
 ## Features
 
 ### Create Task
 
-1. Enter task prompt (e.g., "Search for browser automation on DuckDuckGo")
-2. Set max steps (default: 100)
-3. Select browser (Firefox, Chrome, WebKit)
-4. Click "Start Task"
-5. Task will appear in the output panel and start streaming
+1. Navigate to "Create Task" page
+2. Enter task prompt (e.g., "Search for browser automation on DuckDuckGo")
+3. Set max steps (default: 100)
+4. Select browser type
+5. Click "Start Task"
+
+### View Tasks
+
+1. Navigate to "Task List" page
+2. See all tasks with status indicators:
+   - 🟠 Running
+   - 🟢 Completed
+   - 🔴 Failed
+   - 🔵 Pending
+   - ⚫ Cancelled
+3. Click "View History" to see execution details
 
 ### View Task History
 
-- Task list shows all tasks with status badges
-- Click any task to view its history
-- Tasks are sorted by creation date (newest first)
-
-### Monitor Real-time Execution
-
-- When a task starts, WebSocket connection is established
-- Real-time updates appear in the output panel
-- Each step shows:
-  - Step number
-  - Current URL
-  - Agent thinking
-  - Actions taken
-  - Results
-
-### Task Status Colors
-
-- 🟡 **Pending** - Task created but not started
-- 🔵 **Running** - Task is currently executing
-- 🟢 **Completed** - Task finished successfully
-- 🔴 **Failed** - Task encountered an error
-- ⚪ **Cancelled** - Task was cancelled
-
-## UI Components
-
-### Left Panel - Task Management
-
-- **Task Creation Form**: Create new automation tasks
-- **Task History List**: Browse and select previous tasks
-
-### Right Panel - Task Output
-
-- **Stream Output**: Real-time execution updates
-- **Step Details**: Detailed information about each step
-- **Final Results**: Task completion summary
-
-## WebSocket Integration
-
-The frontend connects to the Backend Service WebSocket endpoint:
-
-```javascript
-ws://localhost:8000/tasks/{task_id}/stream
-```
-
-Connection is automatically established when:
-- A new task is created
-- An existing running task is selected
-
-### Message Types
-
-The frontend handles these message types:
-
-- `task_start` - Task initialization
-- `step` - Step-by-step execution updates
-- `task_complete` - Task completion
-- `error` - Error notifications
-
-## API Integration
-
-### Backend Service Endpoints
-
-- `POST /tasks/start` - Create and start task
-- `GET /tasks/{id}/status` - Get task status
-- `WebSocket /tasks/{id}/stream` - Real-time updates
-
-### Database Service Endpoints
-
-- `GET /tasks` - List all tasks
-- `GET /tasks/{id}` - Get task details
-- `GET /tasks/{id}/history` - Get task execution history
-
-## Customization
-
-### Styling
-
-Edit the `<style>` section in `index.html` to customize:
-- Colors
-- Layout
-- Typography
-- Component styles
-
-### Backend URL
-
-Change the backend URL in the script section:
-```javascript
-const BACKEND_URL = 'http://your-backend-url:8000';
-```
+1. Navigate to "Task History" page
+2. Enter task ID or select from list
+3. View step-by-step execution details in expandable sections
 
 ## Architecture
 
-The frontend is a single-page application (SPA) that:
-- Uses vanilla JavaScript (no framework dependencies)
-- Communicates with backend via REST APIs
-- Receives real-time updates via WebSocket
-- Stores no client-side state (stateless design)
+The frontend uses:
+- **Streamlit** for the web UI framework
+- **gRPC** for communication with Backend and Database services
+- **Protocol Buffers** for type-safe message definitions
 
-## Browser Compatibility
+### Service Communication
 
-- Modern browsers (Chrome, Firefox, Safari, Edge)
-- WebSocket support required
-- ES6+ JavaScript features
+- **Backend Service**: Task creation, status checking, cancellation
+- **Database Service**: Task listing, history retrieval
+
+## gRPC Integration
+
+The frontend connects to services via gRPC:
+
+### Backend Service Methods
+- `StartTask` - Create and start a new task
+- `GetTaskStatus` - Get current task status
+- `CancelTask` - Cancel a running task
+
+### Database Service Methods
+- `ListTasks` - List all tasks
+- `GetTask` - Get task details
+- `GetTaskHistory` - Get task execution history
 
 ## Troubleshooting
 
-### Cannot Connect to Backend
+### Cannot Connect to Backend Service
 
-- Verify Backend Service is running on port 8000
-- Check CORS settings in Backend Service
-- Verify firewall/network rules
+```bash
+# Verify Backend Service is running
+grpcurl -plaintext localhost:50050 list
 
-### WebSocket Connection Fails
+# Check environment variables
+echo $BACKEND_SERVICE_HOST
+echo $BACKEND_SERVICE_PORT
+```
 
-- Ensure WebSocket endpoint is accessible
-- Check browser console for errors
-- Verify task ID is valid
+### Cannot Connect to Database Service
 
-### Tasks Not Loading
+```bash
+# Verify Database Service is running
+grpcurl -plaintext localhost:50052 list
 
-- Verify Database Service is running on port 8002
-- Check browser console for API errors
-- Verify CORS headers are set correctly
+# Check environment variables
+echo $DATABASE_SERVICE_HOST
+echo $DATABASE_SERVICE_PORT
+```
 
-### No Updates Appearing
+### Protobuf Import Errors
 
-- Check WebSocket connection status
-- Verify task is actually running
-- Check browser console for errors
+```bash
+# Regenerate protobuf files
+cd ../shared
+python generate_protos.py
+```
+
+### Port Already in Use
+
+```bash
+# Check what's using the port
+lsof -i :8501  # Linux/Mac
+netstat -an | findstr 8501  # Windows
+
+# Change port
+streamlit run app.py --server.port=8502
+```
+
+### Streamlit Not Found
+
+```bash
+# Install Streamlit
+pip install streamlit
+```
 
 ## Development
 
 ### Project Structure
 ```
 Front-end/
-├── index.html   # Main HTML/JS/CSS file
-├── server.py    # Python HTTP server (optional)
-└── README.md   # This file
+├── app.py               # Streamlit application
+├── requirements.txt     # Python dependencies
+├── QUICKSTART.md        # Quick start guide
+└── README.md            # This file
+```
+
+### Running in Development
+
+```bash
+# Start Streamlit in development mode
+streamlit run app.py
 ```
 
 ### Adding Features
 
 To add new features:
-
-1. **New API Endpoint**: Update JavaScript functions in `index.html`
-2. **New UI Component**: Add HTML/CSS in `index.html`
-3. **New WebSocket Message**: Update `formatOutput()` function
-
-### Testing
-
-1. Start all services (Browser, Database, Backend)
-2. Start Frontend service
-3. Open browser to `http://localhost:8003`
-4. Create a test task
-5. Monitor execution in real-time
+1. Update `app.py` with new Streamlit components
+2. Add new gRPC method calls as needed
+3. Update UI layout and styling
 
 ## Deployment
 
-### Production Deployment
+### Single Machine (Testing)
 
-For production:
-
-1. Serve via a proper web server (Nginx, Apache)
-2. Configure CORS properly
-3. Use HTTPS for WebSocket connections
-4. Set proper cache headers
-5. Minify JavaScript/CSS
-
-### Docker Deployment
-
-You can containerize the frontend:
-```dockerfile
-FROM nginx:alpine
-COPY index.html /usr/share/nginx/html/
-EXPOSE 80
+Run in a screen session:
+```bash
+screen -S frontend-service
+streamlit run app.py
 ```
+
+### Separate Machine (Production)
+
+1. Install dependencies
+2. Configure service addresses
+3. Set environment variables
+4. Run: `streamlit run app.py`
+5. Expose port 8501
+
+### Production Considerations
+
+- Use reverse proxy (Nginx) for HTTPS
+- Configure CORS if needed
+- Set up monitoring
+- Use process manager (systemd, supervisor)
+
+## Quick Start
+
+See [QUICKSTART.md](QUICKSTART.md) for a quick setup guide.
 
 ## License
 
 Part of the Data Collector ADIA project.
-
